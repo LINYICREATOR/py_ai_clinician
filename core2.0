@@ -67,10 +67,10 @@ from scipy.stats.mstats import mquantiles #scipy.stats 是 SciPy 库中用于统
 from mdptoolbox.mdp import PolicyIteration #此语句的作用是从 mdptoolbox 库的 mdp 子模块里导入PolicyIteration类；mdptoolbox是一个用于解决马尔可夫决策过程（Markov Decision Process, MDP）问题的库；PolicyIteration可以实现策略迭代算法
 from reinforcement_learning_mp import offpolicy_multiple_eval_010518 #从文件中导入数据？
 from kmeans_mp import kmeans_with_multiple_runs #k-means算法模块
-from multiprocessing import freeze_support 
+from multiprocessing import freeze_support #freeze_support 函数主要用于支持在 Windows 系统以及其他不支持 fork 系统调用的平台上，将使用 multiprocessing 模块编写的 Python 程序打包成可执行文件（如使用 PyInstaller、cx_Freeze 等工具打包）；在这些平台上，如果不使用 freeze_support，打包后的程序在运行时可能会出现各种问题，比如程序崩溃、无限创建子进程等
 
-def my_zscore(x):
-    return zscore(x,ddof=1),np.mean(x,axis=0),np.std(x,axis=0,ddof=1)
+def my_zscore(x):  #定义一个my_zscore的函数，x为自变量
+    return zscore(x,ddof=1),np.mean(x,axis=0),np.std(x,axis=0,ddof=1) #返回值三个值：数组x经过z分数标准化后的结果（ddof=1表示计算标准差时自由度为1）、数组x沿指定轴的均值（axis=0通常是计算列均值），数组x沿指定轴的标准差
 
 
 # In[ ]:
@@ -79,16 +79,16 @@ def my_zscore(x):
 ######### Functions used in Reinforcement Learning ######## 
 
 
-class PolicyIteration_with_Q(PolicyIteration):
-    def __init__(self, transitions, reward, discount, policy0=None,max_iter=1000, eval_type=0, skip_check=False):
+class PolicyIteration_with_Q(PolicyIteration): #定义一个子类PolicyIteration_with_Q，继承自父类PolicyIteration；继承意味着 PolicyIteration_with_Q 类会自动拥有 PolicyIteration 类的所有属性和方法，同时还可以添加或修改自己特有的属性和方法
+    def __init__(self, transitions, reward, discount, policy0=None,max_iter=1000, eval_type=0, skip_check=False):  #定义类中的属性，transitions表示状态转移概率矩阵；reward为奖励矩阵；discount折扣因子（即γ）；policy0初始策略默认为none；max_iter最大迭代次数默认为1000，为迭代终止条件；eval_type评估类型可能用于指定策略评估阶段的具体方法？默认为0；skip_check是否跳过检查，默认为false，可能用于控制是否对输入的transitions和reward矩阵进行有效性检查
         # Python MDP toolbox from https://github.com/sawcordwell/pymdptoolbox
         # In Matlab MDP Toolbox, P = (S, S, A), R = (S, A) 
         # In Python MDP Toolbox, P = (A, S, S), R= (S, A)
 
-        transitions = np.transpose(transitions,(2,0,1)).copy() # Change to Action First (A, S, S)
-        skip_check = True # To Avoid StochasticError: 'PyMDPToolbox - The transition probability matrix is not stochastic.'
+        transitions = np.transpose(transitions,(2,0,1)).copy() # Change to Action First (A, S, S) #np.transpose 是一个函数，用于对数组的维度进行转置操作；它接受两个参数，第一个参数是要进行转置的数组，第二个参数是一个元组，用于指定新的维度顺序；因为原有数组顺序为（S,S,A）,转换为(A,S,S)；（2，0，1）表示新的维度数据，原数组的第二个维度会变成新数组的第0个维度，原数组的第0个维度会变成新数组的第个维度...；对 transitions 数组进行维度转置操作，并且将结果复制一份重新赋值给transitions变量，copy方法是为了创建一个转制后的副本，使用copy可以确保后续对transitions数组的修改不会影响到原数组
+        skip_check = True # To Avoid StochasticError: 'PyMDPToolbox - The transition probability matrix is not stochastic.'  在马尔可夫决策过程（MDP）中，转移概率矩阵需要满足随机矩阵的性质，即矩阵的每一行元素之和必须等于 1；PyMDPToolbox 库在进行某些操作时会检查转移概率矩阵是否为随机矩阵，如果不满足条件，就会抛出 StochasticError 异常；将 skip_check 设置为 True 后，可能会跳过对转移概率矩阵的随机矩阵检查，从而避免因矩阵不满足随机矩阵条件而抛出异常；但跳过检查可能会导致后续的计算结果不准确，因为 MDP 算法通常假设转移概率矩阵是随机矩阵
 
-        PolicyIteration.__init__(self, transitions, reward, discount, policy0=None,max_iter=1000, eval_type=0, skip_check=skip_check)
+        PolicyIteration.__init__(self, transitions, reward, discount, policy0=None,max_iter=1000, eval_type=0, skip_check=skip_check) #父类自身初始化，将父类初始化放在子类之后可以避免覆盖父类初始化属性的情况发生
     
     def _bellmanOperator_with_Q(self, V=None):
         # Apply the Bellman operator on the value function.
