@@ -56,17 +56,17 @@
 # Note: The size of the cohort will depend on which version of MIMIC-III is used.
 # The original cohort from the 2018 Nature Medicine publication was built using MIMIC-III v1.3.
 
-import pickle 
-import numpy as np 
-import pandas as pd 
-from scipy.stats import zscore, rankdata
-import math 
-import scipy.io as sio 
-import datetime 
-from scipy.stats.mstats import mquantiles
-from mdptoolbox.mdp import PolicyIteration
-from reinforcement_learning_mp import offpolicy_multiple_eval_010518
-from kmeans_mp import kmeans_with_multiple_runs 
+import pickle #用于加载/保存python对象
+import numpy as np #库可以用于处理多维数组和矩阵运算
+import pandas as pd #基于numpy的第三方数据分析库，提供高效数据结构以及数据分析工具
+from scipy.stats import zscore, rankdata #scipy库提供优化，积分，差值，统计等多种算法。本语句是从scipy.stats子模块中导入zscore和rankdata两个函数；zscore函数是计算数组中各元素的z分数，表示某个数据点距离均值有多少标准差；rankdata用于计算数组中各元素排名/平均排名/最小排名等。
+import math #数学类函数库，仅支持整数和浮点数运算
+import scipy.io as sio #语句从scipy库中导入io子模块，并为这个子模块指定一个别名sio；scipy.io可以处理不同格式的数据文件如MATLAB文件，图像文件等；别名方便后续代码书写
+import datetime #datetime库可以处理日期和时间
+from scipy.stats.mstats import mquantiles #scipy.stats 是 SciPy 库中用于统计分析的子模块，而 mstats 是 stats 里专门处理掩码数组（masked arrays）的子模块（掩码数组是一种特殊的数组，它允许你标记某些元素为无效值，在进行统计计算时可以【忽略这些无效值】）；mquantiles函数用于计算掩码数组的分位数（eg，50百分位数）
+from mdptoolbox.mdp import PolicyIteration #此语句的作用是从 mdptoolbox 库的 mdp 子模块里导入PolicyIteration类；mdptoolbox是一个用于解决马尔可夫决策过程（Markov Decision Process, MDP）问题的库；PolicyIteration可以实现策略迭代算法
+from reinforcement_learning_mp import offpolicy_multiple_eval_010518 #从文件中导入数据？
+from kmeans_mp import kmeans_with_multiple_runs #k-means算法模块
 from multiprocessing import freeze_support 
 
 def my_zscore(x):
