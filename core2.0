@@ -90,35 +90,35 @@ class PolicyIteration_with_Q(PolicyIteration): #定义一个子类PolicyIteratio
 
         PolicyIteration.__init__(self, transitions, reward, discount, policy0=None,max_iter=1000, eval_type=0, skip_check=skip_check) #父类自身初始化，将父类初始化放在子类之后可以避免覆盖父类初始化属性的情况发生
     
-    def _bellmanOperator_with_Q(self, V=None):
+    def _bellmanOperator_with_Q(self, V=None): #定义一个方法名为 _bellmanOperator_with_Q，且名字前有_表明方法主要用于类内部的实现。V初始值为None，若无V值传入则为默认值，若有则为传入值
         # Apply the Bellman operator on the value function.
         #
         # Updates the value function and the Vprev-improving policy.
         #
-        # Returns: (policy, Q, value), tuple of new policy and its value
+        # Returns: (policy, Q, value), tuple of new policy and its value  方法会返回一个元组 (policy, Q, value)，其中 policy 是新的策略，Q 通常代表动作价值函数（Q-function），value 是新策略对应的值函数
         #
-        # If V hasn't been sent into the method, then we assume to be working
+        # If V hasn't been sent into the method, then we assume to be working    如果 V 没有被传入方法，那么方法会假设使用类实例对象自身的 V 属性进行计算，即使用类中已经存储的值函数进行贝尔曼算子的应用
         # on the objects V attribute
-        if V is None:
+        if V is None:   #下面这段代码的作用是在 V 为 None 时使用类实例的 V 属性，在 V 不为 None 时检查其是否为 numpy 数组或矩阵，以及形状是否符合要求。
             # this V should be a reference to the data rather than a copy
             V = self.V
         else:
             # make sure the user supplied V is of the right shape
             try:
-                assert V.shape in ((self.S,), (1, self.S)), "V is not the "                     "right shape (Bellman operator)."
-            except AttributeError:
-                raise TypeError("V must be a numpy array or matrix.")
-        # Looping through each action the the Q-value matrix is calculated.
+                assert V.shape in ((self.S,), (1, self.S)), "V is not the "                     "right shape (Bellman operator)."  #检查 V 的形状是否符合要求。self.S 通常代表状态的数量。((self.S,), (1, self.S)) 表示 V 可以是一维数组（形状为 (self.S,)），也可以是二维数组且只有一行（形状为 (1, self.S)）。如果 V 的形状不在这两种情况之内，assert 语句会触发 AssertionError，并输出错误信息 "V is not the right shape (Bellman operator)."
+            except AttributeError:  #捕获 AttributeError 异常
+                raise TypeError("V must be a numpy array or matrix.")  #当捕获到该异常时，raise TypeError("V must be a numpy array or matrix.") 会抛出一个 TypeError 异常，提示用户 V 必须是 numpy 数组或矩阵
+        # Looping through each action the the Q-value matrix is calculated.    代码会遍历每一个动作，进而计算 Q 值矩阵。在马尔可夫决策过程（MDP）中，Q 值表示在某个状态下采取某个动作所能获得的期望累积奖励
         # P and V can be any object that supports indexing, so it is important
         # that you know they define a valid MDP before calling the
         # _bellmanOperator method. Otherwise the results will be meaningless.
-        Q = np.empty((self.A, self.S))
-        for aa in range(self.A):
-            Q[aa] = self.R[aa] + self.discount * self.P[aa].dot(V)
+        Q = np.empty((self.A, self.S))  #使用 np.empty 函数创建一个形状为 (self.A, self.S) 的空数组 Q，其中 self.A 代表动作的数量，self.S 代表状态的数量。这个数组将用于存储计算得到的 Q 值矩阵
+        for aa in range(self.A):  #通过 for 循环遍历每一个动作 aa
+            Q[aa] = self.R[aa] + self.discount * self.P[aa].dot(V) #对于每个动作 aa，根据贝尔曼方程计算 Q 值。self.R[aa] 表示在采取动作 aa 时的即时奖励，self.discount 是折扣因子，self.P[aa].dot(V) 表示在采取动作 aa 后，根据状态转移概率矩阵 self.P[aa] 对下一个状态的价值函数 V 进行加权求和。将即时奖励和折扣后的下一个状态的价值相加，得到在该状态下采取该动作的 Q 值
         # Get the policy and value, for now it is being returned but...
         # Which way is better?
         # 1. Return, (policy, value)
-        return (Q.argmax(axis=0), Q, Q.max(axis=0))
+        return (Q.argmax(axis=0), Q, Q.max(axis=0)) #直接返回一个元组 (Q.argmax(axis=0), Q, Q.max(axis=0))。Q.argmax(axis=0) 表示在每个状态下选择 Q 值最大的动作，得到新的策略；Q 是计算得到的 Q 值矩阵；Q.max(axis=0) 表示在每个状态下 Q 值的最大值，得到新的价值函数
         # 2. update self.policy and self.V directly
         # self.V = Q.max(axis=1)
         # self.policy = Q.argmax(axis=1)
