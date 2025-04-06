@@ -162,60 +162,69 @@ class PolicyIteration_with_Q(PolicyIteration): #定义一个子类PolicyIteratio
             else:  #如果不符合上面的终止条件将policy_next赋值给self.policy继续迭代
                 self.policy = policy_next 
 
-        self._endRun()
+        self._endRun()  调用_endrun方法（可能用于清理资源？）
         
-        return Q 
+        return Q  #返回最终得到的Q值
     
 
 
 # In[ ]:
+#174-183行主要实现了在主程序中加载step_4_start.pkl文件中数据，同时处理打包和警告过滤相关的问题
 
-
-if __name__ == '__main__': 
+if __name__ == '__main__':   #确保代码块里的代码只有在该 Python 文件被直接运行时才会执行，若作为模块被导入则不会执行，这样可以（1）防止不必要的执行，通常导入模块时只希望导入模块的功能（2）大型项目中通常有一个主程序文件作为程序的入口点，可以明确哪些代码是程序起始执行部分？
     
-    freeze_support()
+    freeze_support()  #freeze_support函数主要用于支持将 Python 脚本打包成可执行文件，没有导入multiprocessing模块？最前面有
     
     # To ignore 'Runtime Warning: Invalid value encountered in greater' caused by NaN 
-    np.warnings.filterwarnings('ignore')
+    np.warnings.filterwarnings('ignore')  #为了忽略 'Runtime Warning: Invalid value encountered in greater' 警告
 
     # Load pickle 
-    with open('step_4_start.pkl', 'rb') as file:
-        MIMICtable = pickle.load(file)
+    with open('step_4_start.pkl', 'rb') as file:  #使用 with 语句打开一个二进制文件 step_4_start.pkl，'rb' 表示以二进制只读模式打开文件。with 语句会自动管理文件的打开和关闭，保证文件操作结束后会正确关闭文件
+        MIMICtable = pickle.load(file)   #使用 pickle 模块的 load 函数从打开的文件中加载数据，并将其赋值给变量 MIMICtable
     
-    #############################  MODEL PARAMETERS   #####################################
+    #############################  MODEL PARAMETERS   #####################################   模型参数设置
 
-    print('####  INITIALISATION  ####') 
+    print('####  INITIALISATION  ####')    #提示进行初始化操作
 
-    nr_reps=500               # nr of repetitions (total nr models) % 500 
-    nclustering=32            # how many times we do clustering (best solution will be chosen) % 32
-    prop=0.25                 # proportion of the data we sample for clustering
-    gamma=0.99                # gamma
-    transthres=5              # threshold for pruning the transition matrix
-    polkeep=1                 # count of saved policies
-    ncl=750                   # nr of states
-    nra=5                     # nr of actions (2 to 10)
-    ncv=5                     # nr of crossvalidation runs (each is 80% training / 20% test)
-    OA=np.full((752,nr_reps),np.nan)       # record of optimal actions
-    recqvi=np.full((nr_reps*2,30),np.nan)  # saves data about each model (1 row per model)
+    nr_reps=500               # nr of repetitions (total nr models) % 500   总共要训练的模型数量，500
+    nclustering=32            # how many times we do clustering (best solution will be chosen) % 32   表示聚类操作的次数，程序会从聚类结果中选择最优的解决方案，设为32
+    prop=0.25                 # proportion of the data we sample for clustering    用于聚类的数据采样比例，设置为0.25
+    gamma=0.99                # gamma  折扣因子
+    transthres=5              # threshold for pruning the transition matrix   用于修剪转移矩阵的阈值，当转移矩阵中的某些元素满足特定条件（可能是小于该阈值）时，会被修剪掉
+    polkeep=1                 # count of saved policies   保存的策略数量，这里设置为 1，表示只保存一个最优策略
+    ncl=750                   # nr of states   状态的数量，设置为 750
+    nra=5                     # nr of actions (2 to 10)   ？这是哪个参数
+    ncv=5                     # nr of crossvalidation runs (each is 80% training / 20% test)   #交叉验证的运行次数，每次交叉验证会将数据划分为 80% 的训练集和 20% 的测试集，这里设置为 5
+    OA=np.full((752,nr_reps),np.nan)       # record of optimal actions  使用 numpy 的 full 函数创建一个形状为 (752, nr_reps) 的二维数组，初始值都为 NaN（非数字），用于记录最优动作
+    recqvi=np.full((nr_reps*2,30),np.nan)  # saves data about each model (1 row per model)  使用 numpy 的 full 函数创建一个形状为 (nr_reps*2, 30) 的二维数组，初始值为 NaN，用于保存每个模型的相关数据，每行代表一个模型
     # allpols=[]  # saving best candidate models
-    
-    
-    # #################   Convert training data and compute conversion factors    ######################
+
+#插入关于k_means聚类的介绍，文中是通过聚类算法将患者数据聚类为750个离散状态，并通过主成分分析来验证状态分布与死亡率之间的关系；聚类本身数据没有标签
+  #k_means聚类是通过迭代的方式：先设置k个质心，数据点依据当前质心被分到某聚类中，再根据当前数据点重新计算聚类的质心
+  #输入结果簇的个数k和包含n个对象的集合，输出是k个簇的集合
+#插入关于数据集的划分问题：一部分数据用来训练模型让模型能够达到该有的功能以及预测效果，然后用测试集来验证模型的预测效果到底如何。通常两个数据集的比例为7：3或者8：2
+  #但通常解决一个问题的算法有很多，模型也有很多，调整模型中的超参（参数的参数）也可以得到不同的模型参数，但哪一种模型最好？引入验证集，将训练集数据分为两部分，训练集和验证集，训练集用于训练模型，而验证集用于给不同模型打分，然后将两部分数据合在一起重新训练最后使用测试集来验证；通常使用的训练集验证集测试集的比例为70：15：15/80：10：10/60：20：20
+#交叉验证：在实际操作的过程中通常有一些数据集很小，这导致当我们按比例选取数据集中不同部分的数据作为训练集和验证集的时候导致训练的模型差异大，从而导致没办法得到最优的超参组合。提出交叉验证策略
+  #所以我们按比例（eg.4折交叉/k折交叉验证）取数据集中不同部分数据作为验证集来计算不同模型中某一模型的得分，然后将所有得分取平均值将其作为模型得分
+
+    # #################   Convert training data and compute conversion factors    ######################  接下来的代码用于转换训练数据并计算转换因子，为后续的数据处理做准备
 
     # all 47 columns of interest
-    colbin = ['gender','mechvent','max_dose_vaso','re_admission'] 
+    colbin = ['gender','mechvent','max_dose_vaso','re_admission'] 存储需要进行二值化处理的列名，这些列的数据可能只有两种取值，例如性别（男 / 女）等
     colnorm= ['age','Weight_kg','GCS','HR','SysBP','MeanBP','DiaBP','RR','Temp_C','FiO2_1',        'Potassium','Sodium','Chloride','Glucose','Magnesium','Calcium',        'Hb','WBC_count','Platelets_count','PTT','PT','Arterial_pH','paO2','paCO2',        'Arterial_BE','HCO3','Arterial_lactate','SOFA','SIRS','Shock_Index','PaO2_FiO2','cumulated_balance'] 
+    #存储需要进行归一化处理的列名，这些列的数据通常是连续的数值，归一化可以将数据缩放到一个特定的范围，便于模型处理
     collog=['SpO2','BUN','Creatinine','SGOT','SGPT','Total_bili','INR','input_total','input_4hourly','output_total','output_4hourly']
+    #存储需要进行对数变换的列名，对数变换可以将数据的分布进行调整，使其更符合模型的要求
 
-    colbin=np.where(np.isin(MIMICtable.columns,colbin))[0]
-    colnorm=np.where(np.isin(MIMICtable.columns,colnorm))[0]
-    collog=np.where(np.isin(MIMICtable.columns,collog))[0]
+    colbin=np.where(np.isin(MIMICtable.columns,colbin))[0]  #np.where(np.isin(MIMICtable.columns, colbin))[0]：取元组中的第一个元素，即得到 MIMICtable 数据集中属于 colbin 列表的列的【索引】
+    colnorm=np.where(np.isin(MIMICtable.columns,colnorm))[0]  #同上
+    collog=np.where(np.isin(MIMICtable.columns,collog))[0]  #同上
 
-    # find patients who died in ICU during data collection period
+    # find patients who died in ICU during data collection period  #找出在数据收集期间于 ICU 去世的患者。具体筛选条件为：bloc 等于 1、died_within_48h_of_out_time 等于 1 且 delay_end_of_record_and_discharge_or_death 小于 24
     # ii=MIMICtable.bloc==1&MIMICtable.died_within_48h_of_out_time==1& MIMICtable.delay_end_of_record_and_discharge_or_death<24;
     # icustayidlist=MIMICtable.icustayid;
     # ikeep=~ismember(icustayidlist,MIMICtable.icustayid(ii));
-    reformat5=MIMICtable.values.copy() 
+    reformat5=MIMICtable.values.copy()  #把 MIMICtable 的数据值复制到 reformat5 中
     # reformat5=reformat5(ikeep,:);
     icustayidlist=MIMICtable['icustayid']
     icuuniqueids=np.unique(icustayidlist) # list of unique icustayids from MIMIC
