@@ -123,44 +123,44 @@ class PolicyIteration_with_Q(PolicyIteration): #定义一个子类PolicyIteratio
         # self.V = Q.max(axis=1)
         # self.policy = Q.argmax(axis=1)
     
-    def run(self):
+    def run(self):   #到167行这段定义了一个方法run，用来实现策略迭代算法
         # Run the policy iteration algorithm.
-        self._startRun()
+        self._startRun()  #可能在父类中？/某个已经定义好的类中的方法函数
 
-        while True:
-            self.iter += 1
+        while True:   #创建无限循环
+            self.iter += 1  #每迭代一次self.iter加1
             # these _evalPolicy* functions will update the classes value
             # attribute
-            if self.eval_type == "matrix":
+            if self.eval_type == "matrix":  #根据self.eval_type的值选择不同的策略评估方法，若为matrix则调用self._evalPolicyMatrix方法（可能是矩阵计算？）
                 self._evalPolicyMatrix()
-            elif self.eval_type == "iterative":
+            elif self.eval_type == "iterative":  #若为iterative则调用self._evalPolicyIterative方法（可能是迭代的方式计算？）
                 self._evalPolicyIterative()
             # This should update the classes policy attribute but leave the
             # value alone
-            policy_next, Q, null = self._bellmanOperator_with_Q()
-            del null
-            # calculate in how many places does the old policy disagree with
+            policy_next, Q, null = self._bellmanOperator_with_Q()  #调用self._bellmanOperator_with_Q方法，该方法会返回新的策略policy_next, Q矩阵和null值
+            del null  #删除null变量，释放内存
+            # calculate in how many places does the old policy disagree with  #计算新旧策略（policy_next与self.policy）在多少个状态上不一样，赋值给n_different
             # the new policy
-            n_different = (policy_next != self.policy).sum()
+            n_different = (policy_next != self.policy).sum()  #计算策略间差异
             # if verbose then continue printing a table
-            if self.verbose:
-                _printVerbosity(self.iter, n_different)
+            if self.verbose:  #verbose是一个控制输出的标志变量，设为true可以输出详细的运行信息排查问题，设为false则可以避免不必要的输出
+                _printVerbosity(self.iter, n_different)  #如果self.verbose为True，则调用 _printVerbosity 方法，输出当前迭代次数和策略差异的详细信息
             # Once the policy is unchanging of the maximum number of
             # of iterations has been reached then stop
-            if n_different == 0:
-                if self.verbose:
+            if n_different == 0:   #以下为终止条件判断 如果n_different=0则说明新旧策略完全相同策略已经收敛，此时跳出循环
+                if self.verbose:  #输出对应的文字policy unchanging. Stopping iteration.
                     print(_MSG_STOP_UNCHANGING_POLICY)
                 break
-            elif self.iter == self.max_iter:
+            elif self.iter == self.max_iter:  或者self.iter等于self.max_iter说明达到预设的最大迭代次数，跳出循环并打印Maximum number of iterations reached. Stopping optimization
                 if self.verbose:
                     print(_MSG_STOP_MAX_ITER)
                 break
-            elif self.iter > 20 and n_different <=5 : # This condition was added from the Nature Code 
+            elif self.iter > 20 and n_different <=5 : # This condition was added from the Nature Code   #如果迭代次数大于20且策略差异小于5，也停止迭代并打印Training stopped early
                 if self.verbose: 
-                    print((_MSG_STOP))
+                    print((_MSG_STOP))  #多一层括号？
                 break 
-            else:
-                self.policy = policy_next
+            else:  #如果不符合上面的终止条件将policy_next赋值给self.policy继续迭代
+                self.policy = policy_next 
 
         self._endRun()
         
