@@ -252,9 +252,9 @@ if __name__ == '__main__':   #确保代码块里的代码只有在该 Python 文
     
     for modl in range(nr_reps):  # MAIN LOOP OVER ALL MODELS 所有模型遍历500个
         N=icuuniqueids.size # total number of rows to choose from  #获取 icuuniqueids 的元素数量，即患者 ID 的总数
-        grp=np.floor(ncv*np.random.rand(N,1)+1);  #list of 1 to 5 (20% of the data in each grp) -- this means that train/test MIMIC split are DIFFERENT in all the 500 models
+        grp=np.floor(ncv*np.random.rand(N,1)+1);  #list of 1 to 5 (20% of the data in each grp) -- this means that train/test MIMIC split are DIFFERENT in all the 500 models  生成一个长度为 N 的数组 grp，其中每个元素是 1 到 ncv 之间的随机整数，用于将数据划分为 ncv 个组，这里 ncv 表示交叉验证的折数
         crossval=1;
-        trainidx=icuuniqueids[np.where(grp!=crossval)[0]]
+        trainidx=icuuniqueids[np.where(grp!=crossval)[0]] #根据 grp 数组将患者 ID 划分为训练集和测试集
         testidx=icuuniqueids[np.where(grp==crossval)[0]]
         train=np.isin(icustayidlist,trainidx)
         test=np.isin(icustayidlist,testidx)
