@@ -76,7 +76,7 @@ def my_zscore(x):  #定义一个my_zscore的函数，x为自变量
 # In[ ]:
 
 
-######### Functions used in Reinforcement Learning ######## 
+######### Functions used in Reinforcement Learning ########   强化学习中用到的函数
 
 
 class PolicyIteration_with_Q(PolicyIteration): #定义一个子类PolicyIteration_with_Q，继承自父类PolicyIteration；继承意味着 PolicyIteration_with_Q 类会自动拥有 PolicyIteration 类的所有属性和方法，同时还可以添加或修改自己特有的属性和方法
@@ -253,51 +253,53 @@ if __name__ == '__main__':   #确保代码块里的代码只有在该 Python 文
     for modl in range(nr_reps):  # MAIN LOOP OVER ALL MODELS 所有模型遍历500个
         N=icuuniqueids.size # total number of rows to choose from  #获取 icuuniqueids 的元素数量，即患者 ID 的总数
         grp=np.floor(ncv*np.random.rand(N,1)+1);  #list of 1 to 5 (20% of the data in each grp) -- this means that train/test MIMIC split are DIFFERENT in all the 500 models  生成一个长度为 N 的数组 grp，其中每个元素是 1 到 ncv 之间的随机整数，用于将数据划分为 ncv 个组，这里 ncv 表示交叉验证的折数
-        crossval=1;
-        trainidx=icuuniqueids[np.where(grp!=crossval)[0]] #根据 grp 数组将患者 ID 划分为训练集和测试集
+        crossval=1;  #不懂，这个变量前面没有啊，这是干嘛的？交叉验证的折，意会一下，就是那个验证集的占比1（：4）
+        trainidx=icuuniqueids[np.where(grp!=crossval)[0]]  #根据 grp 数组将患者 ID 划分为训练集和测试集
         testidx=icuuniqueids[np.where(grp==crossval)[0]]
-        train=np.isin(icustayidlist,trainidx)
+        train=np.isin(icustayidlist,trainidx)  #生成布尔数组 train 和 test，用于标记每个样本是否属于训练集或测试集
         test=np.isin(icustayidlist,testidx)
-        X=MIMICzs[train,:]
+        X=MIMICzs[train,:] #根据 train 数组将 MIMICzs 数据集划分为训练集 X 和测试集 Xtestmimic
         Xtestmimic=MIMICzs[~train,:]
-        blocs=reformat5[train,0]
+        blocs=reformat5[train,0]  #根据 train 数组将 reformat5 数据集的第一列划分为训练集 blocs 和测试集 bloctestmimic
         bloctestmimic=reformat5[~train,0]
-        ptid=reformat5[train,1]
+        ptid=reformat5[train,1]  #根据 train 数组将 reformat5 数据集的第二列划分为训练集 ptid 和测试集 ptidtestmimic
         ptidtestmimic=reformat5[~train,1] 
-        outcome=9 #   HOSP _ MORTALITY = 7 / 90d MORTA = 9
-        Y90=reformat5[train,outcome];   
+        outcome=9 #   HOSP _ MORTALITY = 7 / 90d MORTA = 9 设置要预测的结果列索引为 9，90天死亡率
+        Y90=reformat5[train,outcome];   #从训练集中提取要预测的结果列数据
 
 
-        print('########################   MODEL NUMBER : ',modl)
+        print('########################   MODEL NUMBER : ',modl)   #打印当前模型的编号和当前时间，方便监控模型训练的进度
         print(datetime.datetime.now())
 
-        #######   find best clustering solution (lowest intracluster variability)  ####################
-        print('####  CLUSTERING  ####') # BY SAMPLING
-        N=X.shape[0] #total number of rows to choose from
-        sampl=X[np.where(np.floor(np.random.rand(N,1)+prop))[0],:]
+        #######   find best clustering solution (lowest intracluster variability)  ####################  寻找最佳聚类解决方案（集群内变异性最低）
+        print('####  CLUSTERING  ####') # BY SAMPLING 输出“聚类”
+        N=X.shape[0] #total number of rows to choose from   #获取训练集 X 的样本数量
+        sampl=X[np.where(np.floor(np.random.rand(N,1)+prop))[0],:]  #从训练集 X 中随机采样一部分数据作为聚类的输入，采样比例由 prop 决定
 
-        C = kmeans_with_multiple_runs(ncl,10000,nclustering,sampl) 
-        idx = C.predict(X)
+        C = kmeans_with_multiple_runs(ncl,10000,nclustering,sampl)  #调用 kmeans_with_multiple_runs 函数对采样数据进行多次 K-Means 聚类，返回最优的聚类模型 C
+        idx = C.predict(X)  #使用最优的聚类模型 C 对整个训练集 X 进行聚类预测，得到每个样本所属的聚类编号
 
-        ############################## CREATE ACTIONS  ########################
+        ############################## CREATE ACTIONS  ########################   创建动作
         print('####  CREATE ACTIONS  ####') 
 
-        nact=nra*nra
+        nact=nra*nra #动作总数？
 
-        iol=MIMICtable.columns.get_loc('input_4hourly') 
-        vcl=MIMICtable.columns.get_loc('max_dose_vaso') 
+        iol=MIMICtable.columns.get_loc('input_4hourly')  #获取 MIMICtable 数据集中 input_4hourly 列的索引，可能表示每四小时静脉输液量？
+        vcl=MIMICtable.columns.get_loc('max_dose_vaso')  #获取 MIMICtable 数据集中 max_dose_vaso 列的索引，血管活性药物最大剂量？
 
-        a= reformat5[:,iol].copy()                   # IV fluid
-        a= rankdata(a[a>0])/a[a>0].shape[0]   # excludes zero fluid (will be action 1)
+        a= reformat5[:,iol].copy()                   # IV fluid 复制 reformat5 数据集中 input_4hourly 列的数据到 a 中
+        a= rankdata(a[a>0])/a[a>0].shape[0]   # excludes zero fluid (will be action 1)  rankdata(a[a > 0]) 会对 a 中所有大于 0 的元素进行排名，并返回一个包含排名的数组；a[a > 0]是一个布尔索引操作，它从数组 a 中筛选出所有大于 0 的元素，a[a > 0].shape[0] 表示 a 中大于 0 的元素的数量；将排名数组除以这个数量，就实现了对排名的归一化处理，将排名值缩放到 [0, 1] 区间内；其中0值作为一个输液量被设置为动作1
 
-        iof=np.floor((a+0.2499999999)*4)  #converts iv volume in 4 actions
+        iof=np.floor((a+0.2499999999)*4)  #converts iv volume in 4 actions  #将数组a中数据处理（+0.249999之后再乘4）后使用floor 函数对前面计算得到的数组进行向下取整操作将最终的结果赋值给变量 iof。操作最后将输液量划分为4个不同类别或者等级，定为4个动作
 
-        a= reformat5[:,iol].copy() 
-        a= np.where(a>0)[0]  # location of non-zero fluid in big matrix
+        a= reformat5[:,iol].copy()  #再次复制 reformat5 数据集中 input_4hourly 列的数据到 a 中？不会影响吗
+        a= np.where(a>0)[0]  # location of non-zero fluid in big matrix  #找出非零数据的索引
 
-        io=np.ones((reformat5.shape[0],1))  # array of ones, by default     
-        io[a]=(iof+1).reshape(-1,1)   # where more than zero fluid given: save actual action
-        io = io.ravel() 
+        io=np.ones((reformat5.shape[0],1))  # array of ones, by default   创建一个元组，这里表示行数为 reformat5 的行数，列数为 1；使用 numpy 的 ones 函数创建一个指定形状的数组，数组中的所有元素都初始化为 1 
+        io[a]=(iof+1).reshape(-1,1)   # where more than zero fluid given: save actual action  此语句是为了在静脉输液量大于 0 的位置，保存实际的动作编号； iof是一个保存动作编号的数组，a是非零输液量数据的索引，【(iof + 1).reshape(-1, 1)：将 iof + 1 数组重新调整形状为列向量，-1 表示该维度的大小由数组的总元素数和其他维度的大小自动计算得出？不懂】
+        io = io.ravel()  #使用 numpy 的 ravel 函数将 io 数组展平为一维数组。ravel 函数会返回一个一维数组，包含 io 数组中的所有元素，并重新赋值给io
+        #以上 io 数组就记录了每个样本对应的动作编号，其中默认值为 1，静脉输液量大于 0 的位置保存了实际的动作编号
+
 
         vc=reformat5[:,vcl].copy() 
         vcr= rankdata(vc[vc!=0])/vc[vc!=0].size
