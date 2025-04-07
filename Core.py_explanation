@@ -226,31 +226,32 @@ if __name__ == '__main__':   #确保代码块里的代码只有在该 Python 文
     # ikeep=~ismember(icustayidlist,MIMICtable.icustayid(ii));
     reformat5=MIMICtable.values.copy()  #把 MIMICtable 的数据值复制到 reformat5 中
     # reformat5=reformat5(ikeep,:);  
-    icustayidlist=MIMICtable['icustayid']     #从 MIMICtable 里提取 icustayid 列的数据
-    icuuniqueids=np.unique(icustayidlist) # list of unique icustayids from MIMIC
-    idxs=np.full((icustayidlist.shape[0],nr_reps),np.nan) # record state membership test cohort
+    icustayidlist=MIMICtable['icustayid']     #从 MIMICtable 里提取 icustayid 列的数据 (什么数据？)
+    icuuniqueids=np.unique(icustayidlist) # list of unique icustayids from MIMIC  获取 icustayid 列中的唯一值，也就是所有不同的患者 ICU 停留 ID
+    idxs=np.full((icustayidlist.shape[0],nr_reps),np.nan) # record state membership test cohort   创建一个形状为 (icustayidlist.shape[0], nr_reps) 的数组 idxs，并将其元素初始化为 NaN，该数组用于记录测试队列的状态成员信息
 
-    MIMICraw=MIMICtable.iloc[:, np.concatenate([colbin,colnorm,collog])] 
-    MIMICraw=MIMICraw.values.copy()  # RAW values
+    MIMICraw=MIMICtable.iloc[:, np.concatenate([colbin,colnorm,collog])]   #从 MIMICtable 中提取 colbin、colnorm 和 collog 所指定列的数据
+    MIMICraw=MIMICraw.values.copy()  # RAW values  把提取的数据值复制到 MIMICraw 中，得到原始数据
     MIMICzs=np.concatenate([reformat5[:, colbin]-0.5, zscore(reformat5[:,colnorm],ddof=1), zscore(np.log(0.1+reformat5[:, collog]),ddof=1)],axis=1)
-    MIMICzs[:,3]=np.log(MIMICzs[:,3]+0.6)   # MAX DOSE NORAD 
-    MIMICzs[:,44]=2*MIMICzs[:,44]   # increase weight of this variable
+    #对不同类型的列进行不同的处理后，再将结果按列拼接成一个新的数组 MIMICzs。具体处理方式为：colbin 列的数据减去 0.5；colnorm 列的数据使用 zscore 函数进行归一化处理；collog 列的数据先加 0.1 后取对数，再使用 zscore 函数进行归一化处理
+    MIMICzs[:,3]=np.log(MIMICzs[:,3]+0.6)   # MAX DOSE NORAD 对 MIMICzs 数组的第 3 列数据加 0.6 后取对数。
+    MIMICzs[:,44]=2*MIMICzs[:,44]   # increase weight of this variable  将 MIMICzs 数组的第 44 列数据乘以 2，以此增加该变量的权重
 
 
     # eICU section was not implemented 
     
-    # compute conversion factors using MIMIC data
-    a=MIMICraw[:, 0:3]-0.5 
-    b= np.log(MIMICraw[:,3]+0.1)
-    c,cmu,csigma = my_zscore(MIMICraw[:,4:36])
-    d,dmu,dsigma = my_zscore(np.log(0.1+MIMICraw[:,36:47]))
+    # compute conversion factors using MIMIC data 计算MIMIC转换因子
+    a=MIMICraw[:, 0:3]-0.5  #从 MIMICraw数据集中提取前三列的所有数据，将每个元素减去0.5，最终结果储存在变量a中
+    b= np.log(MIMICraw[:,3]+0.1)   #从MIMICraw 数据集中选取第 4 列（索引为 3）的所有数据，将所有元素加0.1为了避免对数运算中出现取零的对数，处理后将shujv取对数
+    c,cmu,csigma = my_zscore(MIMICraw[:,4:36])   #从 MIMICraw 数据集中选取第 5 列（索引为 4）到第 36 列的所有行数据，用my_zscore函数最选取的数据进行标准化处理，将数据转化为均值为0，标准差为1的标准正态分布；函数返回三个值：c标准化后的数据/cmu原始数据的均值/csigma原始数据的标准差
+    d,dmu,dsigma = my_zscore(np.log(0.1+MIMICraw[:,36:47]))   #从数据集中第37列到47列的所有行数取出，将每个元素加上0.1后取对数，然后调用my_zscore函数标准化处理，返回三个值标准化后的数据 d、原始数据的均值 dmu 和标准差 dsigma
     
 
-    ####################### Main LOOP ###########################
+    ####################### Main LOOP ###########################    主循环
     bestpol = 0 
     
-    for modl in range(nr_reps):  # MAIN LOOP OVER ALL MODELS
-        N=icuuniqueids.size # total number of rows to choose from
+    for modl in range(nr_reps):  # MAIN LOOP OVER ALL MODELS 所有模型遍历500个
+        N=icuuniqueids.size # total number of rows to choose from  #获取 icuuniqueids 的元素数量，即患者 ID 的总数
         grp=np.floor(ncv*np.random.rand(N,1)+1);  #list of 1 to 5 (20% of the data in each grp) -- this means that train/test MIMIC split are DIFFERENT in all the 500 models
         crossval=1;
         trainidx=icuuniqueids[np.where(grp!=crossval)[0]]
