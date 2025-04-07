@@ -225,8 +225,8 @@ if __name__ == '__main__':   #确保代码块里的代码只有在该 Python 文
     # icustayidlist=MIMICtable.icustayid;
     # ikeep=~ismember(icustayidlist,MIMICtable.icustayid(ii));
     reformat5=MIMICtable.values.copy()  #把 MIMICtable 的数据值复制到 reformat5 中
-    # reformat5=reformat5(ikeep,:);
-    icustayidlist=MIMICtable['icustayid']
+    # reformat5=reformat5(ikeep,:);  
+    icustayidlist=MIMICtable['icustayid']     #从 MIMICtable 里提取 icustayid 列的数据
     icuuniqueids=np.unique(icustayidlist) # list of unique icustayids from MIMIC
     idxs=np.full((icustayidlist.shape[0],nr_reps),np.nan) # record state membership test cohort
 
