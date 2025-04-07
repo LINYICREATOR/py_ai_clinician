@@ -301,25 +301,31 @@ if __name__ == '__main__':   #确保代码块里的代码只有在该 Python 文
         #以上 io 数组就记录了每个样本对应的动作编号，其中默认值为 1，静脉输液量大于 0 的位置保存了实际的动作编号
 
 
-        vc=reformat5[:,vcl].copy() 
-        vcr= rankdata(vc[vc!=0])/vc[vc!=0].size
-        vcr=np.floor((vcr+0.249999999999)*4)  # converts to 4 bins
-        vcr[vcr==0]=1
-        vc[vc!=0]=vcr+1 
-        vc[vc==0]=1
+        vc=reformat5[:,vcl].copy()  #将血管活性药物相关的列取出创建副本，赋值给vc
+        vcr= rankdata(vc[vc!=0])/vc[vc!=0].size    #使用布尔索引，从 vc 数组中筛选出所有非零元素，得到一个新的数组，将数组除以所有非零元素个数实现归一化操作，归一化数据存储在vcr中
+        vcr=np.floor((vcr+0.249999999999)*4)  # converts to 4 bins  取整数，划分四个区间
+        vcr[vcr==0]=1  #将vcr中所有为0的元素替换为1
+        vc[vc!=0]=vcr+1  #将vc中所有非零元素替换为vcr+1，使得编号从2-5
+        vc[vc==0]=1    #将0数据换成1，相当于分成4个动作
 
         ma1 = np.array([np.median(reformat5[io==1,iol]),np.median(reformat5[io==2,iol]),np.median(reformat5[io==3,iol]), np.median(reformat5[io==4,iol]),np.median(reformat5[io==5,iol])]) # median dose of drug in all bins
+        #此代码计算了 reformat5 数据集中 iol 列在不同 io 值条件下的中位数，并将这些中位数存储在一个 numpy 数组 ma1 中；ma1 存储的是所有分组下药物的中位剂量
         ma2 = np.array([np.median(reformat5[vc==1,vcl]),np.median(reformat5[vc==2,vcl]),np.median(reformat5[vc==3,vcl]), np.median(reformat5[vc==4,vcl]),np.median(reformat5[vc==5,vcl])])
+        #此代码计算了 reformat5 数据集中 vcl 列在不同 vc 值条件下的中位数，并将这些中位数存储在一个 numpy 数组 ma2 中
 
-        med = np.concatenate([io.reshape(-1,1),vc.reshape(-1,1)],axis=1)
-        uniqueValues,actionbloc = np.unique(med,axis=0,return_inverse=True)
+        med = np.concatenate([io.reshape(-1,1),vc.reshape(-1,1)],axis=1)  #将io和vc两个一维数组进行合并，形成二维数组med；reshape 函数用于改变数组的形状，-1 表示该维度的大小由数组的总元素数和其他维度的大小自动计算得出，1 表示将一维数组转换为列向量；np.concatenate 函数用于连接数组。axis=1 表示沿着列方向（即第二个轴）进行连接，形成一个二维数组 med，其中 med 的每一行包含了 io 和 vc 对应的两个动作编号
+        uniqueValues,actionbloc = np.unique(med,axis=0,return_inverse=True)   #np.unique 函数用于找出数组中的唯一元素。axis=0 表示沿着行方向（即第一个轴）进行操作，即找出 med 数组中的唯一行。return_inverse=True 表示除了返回唯一行的数组外，还返回一个数组，该数组记录了 med 中每一行在唯一行数组中的索引
+        #uniqueValues：返回的唯一行的数组，即 med 数组中所有不同的行组成的数组；actionbloc：返回的索引数组，其长度与 med 的行数相同，actionbloc 中的每个元素表示 med 中对应行在 uniqueValues 数组中的索引
+        #这两句代码先将 io 和 vc 两个一维数组转换为列向量并按列合并成二维数组 med，然后找出 med 数组中的唯一行，并获取 med 中每一行对应在唯一行数组中的索引
 
-        actionbloctrain=actionbloc[train] 
+        actionbloctrain=actionbloc[train]  #actionbloc[train]：这是一个布尔索引操作。它会依据 train 数组中的布尔值，从 actionbloc 数组里筛选出对应位置为 True 的元素；也就是说，它会提取出 actionbloc 中属于训练集的数据
 
         ma2Values = ma2[uniqueValues[:,1].astype('int64')-1].reshape(-1,1)
         ma1Values = ma1[uniqueValues[:,0].astype('int64')-1].reshape(-1,1)
+        #根据 uniqueValues 数组中的索引信息，从 ma1 和 ma2 数组中提取对应于不同动作编号组合的中位值，并将这些中位值分别存储在 ma1Values 和 ma2Values 列向量中
 
         uniqueValuesdose = np.concatenate([ma2Values,ma1Values],axis=1) # median dose of each bin for all 25 actions 
+        #将分别存储血管活性药物剂量中位值和静脉输液量中位值的 ma2Values 和 ma1Values 列向量按列拼接，得到一个新的二维数组 uniqueValuesdose，该数组记录了所有动作组合下的中位剂量信息
 
         ####################################################################################################################################
         print('####  CREATE QLDATA3  ####')
