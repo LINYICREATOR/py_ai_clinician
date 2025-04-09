@@ -328,29 +328,29 @@ if __name__ == '__main__':   #确保代码块里的代码只有在该 Python 文
         #将分别存储血管活性药物剂量中位值和静脉输液量中位值的 ma2Values 和 ma1Values 列向量按列拼接，得到一个新的二维数组 uniqueValuesdose，该数组记录了所有动作组合下的中位剂量信息
 
         ####################################################################################################################################
-        print('####  CREATE QLDATA3  ####')
+        print('####  CREATE QLDATA3  ####')   #开始创建qldata3数据
 
-        r=np.array([100, -100]).reshape(1,-1)
-        r2=r*(2*(1-Y90.reshape(-1,1))-1)
+        r=np.array([100, -100]).reshape(1,-1)   #创建一个形状为 (1, 2) 的二维数组 r，其中包含两个奖励值 100 和 -100
+        r2=r*(2*(1-Y90.reshape(-1,1))-1)   #是一个代表患者结局（如 90 天死亡率）的数组，Y90.reshape(-1, 1) 将其转换为列向量，然后对结局数据进行线性转换，最后将r与变换后结果相乘，得到r2，是根据结局计算得到的奖励数组
         # because idx and actionbloctrain are index, it's equal to (Matlab's original value -1)
-        qldata=np.concatenate([blocs.reshape(-1,1), idx.reshape(-1,1), actionbloctrain.reshape(-1,1), Y90.reshape(-1,1), r2],axis=1)  # contains bloc / state / action / outcome&reward     
+        qldata=np.concatenate([blocs.reshape(-1,1), idx.reshape(-1,1), actionbloctrain.reshape(-1,1), Y90.reshape(-1,1), r2],axis=1)  # contains bloc / state / action / outcome&reward   blocs 可能代表患者的某个分组信息，idx 是聚类状态索引，actionbloctrain 是动作索引，Y90 是结局信息，r2 是奖励信息；把这些数组都转换为列向量后，使用 np.concatenate 函数按列拼接成 qldata 数组。qldata 包含了患者的分组、状态、动作、结局和奖励等信息  
         # 0 = died in Python, 1 = died in Matlab 
-        qldata3=np.zeros((np.floor(qldata.shape[0]*1.2).astype('int64'),4))
-        c=-1
+        qldata3=np.zeros((np.floor(qldata.shape[0]*1.2).astype('int64'),4)) #创建一个全零的二维数组 qldata3，其行数是 qldata 行数的 1.2 倍（向下取整），列数为 4。这样做是为了预留足够的空间来存储处理后的数据
+        c=-1 
         abss=np.array([ncl+1, ncl]) #absorbing states numbers # 751, 750 
 
-        for i in range(qldata.shape[0]-1):
+        for i in range(qldata.shape[0]-1):  #遍历qladata数组（除了最后一行）
             c=c+1
-            qldata3[c,:]=qldata[i,0:4] 
-            if(qldata[i+1,0]==1): #end of trace for this patient
+            qldata3[c,:]=qldata[i,0:4]  #将 qldata 第 i 行的前 4 列数据复制到 qldata3 的第 c 行
+            if(qldata[i+1,0]==1): #end of trace for this patient  #如果 qldata 下一行的第 1 列元素为 1，意味着当前患者的数据记录结束
                 c=c+1     
-                qldata3[c,:]=np.array([qldata[i,0]+1, abss[int(qldata[i,3])], -1, qldata[i,4]]) 
+                qldata3[c,:]=np.array([qldata[i,0]+1, abss[int(qldata[i,3])], -1, qldata[i,4]])  #在 qldata3 中添加一行新数据，包含更新后的分组信息、吸收状态编号、动作设为 -1 以及奖励信息。
 
-        qldata3=qldata3[:c+1,:]
+        qldata3=qldata3[:c+1,:]  #根据计数器 c 的值，截取 qldata3 数组，只保留实际填充数据的行
 
-
+        #上面这一段是，在干嘛啊.../挠头
         # ###################################################################################################################################
-        print("####  CREATE TRANSITION MATRIX T(S'',S,A) ####")
+        print("####  CREATE TRANSITION MATRIX T(S'',S,A) ####")   #程序准备开始创建状态矩阵
         transitionr=np.zeros((ncl+2,ncl+2,nact))  #this is T(S',S,A)
         sums0a0=np.zeros((ncl+2,nact)) 
 
