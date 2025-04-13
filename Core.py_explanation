@@ -351,36 +351,37 @@ if __name__ == '__main__':   #确保代码块里的代码只有在该 Python 文
         #上面这一段是，在干嘛啊.../挠头
         # ###################################################################################################################################
         print("####  CREATE TRANSITION MATRIX T(S'',S,A) ####")   #程序准备开始创建状态矩阵
-        transitionr=np.zeros((ncl+2,ncl+2,nact))  #this is T(S',S,A)
-        sums0a0=np.zeros((ncl+2,nact)) 
+        transitionr=np.zeros((ncl+2,ncl+2,nact))  #this is T(S',S,A)  创建状态转移函数
+        sums0a0=np.zeros((ncl+2,nact)) # 辅助矩阵：统计每个状态 S 执行动作 A 的总次数
 
-        for i in range(qldata3.shape[0]-1):    
-            if (qldata3[i+1,0]!=1) : # if we are not in the last state for this patient = if there is a transition to make!
+        for i in range(qldata3.shape[0]-1):    #遍历数据序列
+            if (qldata3[i+1,0]!=1) : # if we are not in the last state for this patient = if there is a transition to make!如果不是终止状态，则继续
                 S0=int(qldata3[i,1]) 
                 S1=int(qldata3[i+1,1])
-                acid= int(qldata3[i,2]) 
-                transitionr[S1,S0,acid]=transitionr[S1,S0,acid]+1 
-                sums0a0[S0,acid]=sums0a0[S0,acid]+1
+                acid= int(qldata3[i,2])  #定义当前状态下一状态以及动作
+                transitionr[S1,S0,acid]=transitionr[S1,S0,acid]+1 #记录转移次数；从状态 S0 执行动作 acid 后转移到状态 S1 的次数
+                sums0a0[S0,acid]=sums0a0[S0,acid]+1  #记录在S0下执行动作 acid 的总次数
 
-        sums0a0[sums0a0<=transthres]=0  #delete rare transitions (those seen less than 5 times = bottom 50%!!)
+        sums0a0[sums0a0<=transthres]=0  #delete rare transitions (those seen less than 5 times = bottom 50%!!)  某些状态下动作出现的次数极少，可能是偶然发生，也可能是不准确数据；为了让让得到的状态转移数据更能反映真实的游戏情况，代码会把这些出现次数很少的转移情况都删掉
+
 
         for i in range(ncl+2): 
-            for j in range(nact): 
+            for j in range(nact): #两层循环遍历所有的状态动作对
                 if sums0a0[i,j]==0: 
-                    transitionr[:,i,j]=0; 
+                    transitionr[:,i,j]=0; #如果在某状态下从未做过动作j，那么相对应的状态转移次数也为0
                 else:
-                    transitionr[:,i,j]=transitionr[:,i,j]/sums0a0[i,j]
+                    transitionr[:,i,j]=transitionr[:,i,j]/sums0a0[i,j] #如果不为0，那么将 transitionr[:, i, j] 中的每个元素除以 sums0a0[i, j]，将次数转换成概率
 
 
         transitionr[np.isnan(transitionr)]=0  #replace NANs with zeros
-        transitionr[np.isinf(transitionr)]=0  #replace NANs with zeros
+        transitionr[np.isinf(transitionr)]=0  #replace NANs with zeros处理异常值，将NaN和inf值换成0
 
-        physpol=sums0a0/np.sum(sums0a0, axis=1).reshape(-1,1)    #physicians policy: what action was chosen in each state
+        physpol=sums0a0/np.sum(sums0a0, axis=1).reshape(-1,1)    #physicians policy: what action was chosen in each state 将 sums0a0 数组中的每个元素除以对应状态下执行所有动作的总次数。这样得到的 physpol 矩阵中的元素就表示在每个状态下执行某个动作的概率
 
 
-        print("####  CREATE TRANSITION MATRIX T(S,S'',A)  ####")
+        print("####  CREATE TRANSITION MATRIX T(S,S'',A)  ####")  #创建矩阵T(S,S'',A) 
 
-        transitionr2=np.zeros((ncl+2,ncl+2,nact))  # this is T(S,S',A)
+        transitionr2=np.zeros((ncl+2,ncl+2,nact))  # this is T(S,S',A) 创建新矩阵
         sums0a0=np.zeros((ncl+2,nact))
 
         for i in range(qldata3.shape[0]-1) : 
@@ -401,92 +402,94 @@ if __name__ == '__main__':   #确保代码块里的代码只有在该 Python 文
                     transitionr2[i,:,j]=transitionr2[i,:,j]/sums0a0[i,j]
 
         transitionr2[np.isnan(transitionr2)]=0 #replace NANs with zeros
-        transitionr2[np.isinf(transitionr2)]=0 # replace infs with zeros
+        transitionr2[np.isinf(transitionr2)]=0 # replace infs with zeros  
+        #基本与上一个矩阵过程一致，在实际问题中，可能需要从不同方向分析状态转移情况，所以创建两个矩阵
 
-        print('####  CREATE REWARD MATRIX  R(S,A) ####')
+        print('####  CREATE REWARD MATRIX  R(S,A) ####')  #创建奖励矩阵R
         # CF sutton& barto bottom 1998 page 106. i compute R(S,A) from R(S'SA) and T(S'SA)
-        r3=np.zeros((ncl+2,ncl+2,nact))
-        r3[ncl,:,:]=-100
-        r3[ncl+1,:,:]=100
-        R=sum(transitionr*r3)
-        R=np.squeeze(R)   #remove 1 unused dimension
+        r3=np.zeros((ncl+2,ncl+2,nact))  #使用 numpy 的 zeros 函数创建一个全零的三维数组 r3，其形状为 (ncl + 2, ncl + 2, nact)
+        r3[ncl,:,:]=-100  #终极状态（死亡）负奖励
+        r3[ncl+1,:,:]=100  
+        R=sum(transitionr*r3) #transitionr * r3 是将状态转移矩阵 transitionr 和三维奖励矩阵 r3 对应元素相乘，得到每个状态转移情况下的期望奖励；sum(...) 函数会对相乘后的结果沿着第一个维度（即状态 S' 的维度）进行求和，得到在每个状态 S 下执行每个动作 A 的期望奖励，最终得到二维的奖励矩阵 R(S, A)
+        R=np.squeeze(R)   #remove 1 unused dimension使用 numpy 的 squeeze 函数去除 R 矩阵中长度为 1 的维度；由于求和操作可能会导致出现长度为 1 的维度，这里将其去除，使矩阵的形状更加简洁（这个...没太明白为什么会有长度为1的维度，需要具体数据算一下看）
 
 
-        print('####  POLICY ITERATION   ####')
+        print('####  POLICY ITERATION   ####')  #策略迭代
 
 
-        pi = PolicyIteration_with_Q(transitionr2, R, gamma, np.ones((ncl+2,1))) 
-        Qon = np.transpose(pi.run()) 
-        OptimalAction=np.argmax(Qon,axis=1).reshape(-1,1)  #deterministic 
-        OA[:,modl]=OptimalAction.ravel() #save optimal actions
+        pi = PolicyIteration_with_Q(transitionr2, R, gamma, np.ones((ncl+2,1))) #PolicyIteration_with_Q 是一个自定义的类，用于实现基于 Q 值的策略迭代算法；类中元素如其所写，其中np.ones((ncl + 2, 1)) 是一个初始的策略向量，其中 ncl + 2 表示状态的数量，初始时每个状态对应的策略值都设为 1
+        Qon = np.transpose(pi.run()) #pi.run() 调用 PolicyIteration_with_Q 类中的 run 方法，该方法执行策略迭代算法，通过不断地评估和改进策略，最终得到每个状态 - 动作对的 Q 值；np.transpose(...) 对 pi.run() 的结果进行转置操作，将得到的 Q 值矩阵转换为合适的形状
+        OptimalAction=np.argmax(Qon,axis=1).reshape(-1,1)  #deterministic np.argmax(Qon, axis = 1) 沿着 Qon 矩阵的第一个维度（即状态维度）找到每个状态下 Q 值最大的动作的索引；因为 Q 值表示执行某个动作后能获得的期望累积奖励，所以 Q 值最大的动作就是在该状态下的最优动作；OptimalAction 矩阵存储了每个状态下的最优动作，是一个确定性的策略
+        OA[:,modl]=OptimalAction.ravel() #save optimal actions OA 是一个二维数组，用于保存不同模型或不同迭代步骤下的最优动作；modl 表示当前模型或迭代步骤的索引；OptimalAction.ravel() 将 OptimalAction 矩阵展平为一维数组，然后将其赋值给 OA 数组的第 modl 列，从而保存当前模型下每个状态的最优动作
 
 
-        print('####  OFF-POLICY EVALUATION - MIMIC TRAIN SET ####')
-        # create new version of QLDATA3
+        print('####  OFF-POLICY EVALUATION - MIMIC TRAIN SET ####')  #程序即将开始在 MIMIC 训练集上进行离线策略评估
+        # create new version of QLDATA3创建奖励相关数组
 
-        r=np.array([100, -100]).reshape(1,-1)
-        r2=r*(2*(1-Y90.reshape(-1,1))-1)
+        r=np.array([100, -100]).reshape(1,-1)  #创建一个包含两个元素 [100, -100] 的一维数组，然后将其重塑为形状为 (1, 2) 的二维数组
+        r2=r*(2*(1-Y90.reshape(-1,1))-1) #90天死亡率的值与 r 数组相乘，得到每个样本对应的奖励 r2
         # because idx and actionbloctrain are index, it's equal to (Matlab's original value -1)
         qldata=np.concatenate([blocs.reshape(-1,1), idx.reshape(-1,1), actionbloctrain.reshape(-1,1), Y90.reshape(-1,1),np.zeros((idx.size,1)), r2[:,0].reshape(-1,1), ptid.reshape(-1,1) ],axis=1)   # contains bloc / state / action / outcome&reward     
+        #qldata 数组按列拼接多个数组，包含了blocs、状态信息（idx）、动作信息（actionbloctrain）、结果信息（Y90）、一个占位的零列、奖励信息（r2）以及患者 ID 信息（ptid）
         # 0 = died in Python, 1 = died in Matlab 
-        qldata3=np.zeros((np.floor(qldata.shape[0]*1.2).astype('int64'),8))
+        qldata3=np.zeros((np.floor(qldata.shape[0]*1.2).astype('int64'),8))   #创建一个全零的二维数组 qldata3，其行数为 qldata 数组行数的 1.2 倍（向下取整并转换为 int64 类型），列数为 8；可能是为了预留一些额外的空间？
         c=-1
-        abss=np.array([ncl+1, ncl]) #absorbing states numbers # 751, 750 
+        abss=np.array([ncl+1, ncl]) #absorbing states numbers # 751, 750 包含两个元素的数组 abss，ncl + 1 和 ncl 代表吸收状态的编号；吸收状态是指进入后就不能再转移到其他状态的特殊状态，如死亡或康复出院等
 
-        for i in range(qldata.shape[0]-1):
-            c=c+1
-            qldata3[c,:]=qldata[i,[0,1,2,4,6,6,6,6]] 
-            if(qldata[i+1,0]==1): #end of trace for this patient
+        for i in range(qldata.shape[0]-1): #使用 for 循环遍历 qldata 数组的每一行（除了最后一行）  本循环主要是对 qldata 进行处理，将其转换为 qldata3 ，并在遇到患者数据记录结束时添加吸收状态相关信息，最后截取 qldata3 中有效数据部分
+            c=c+1  #初始c=-1
+            qldata3[c,:]=qldata[i,[0,1,2,4,6,6,6,6]] #从 qldata 的第 i 行中选取第 0、1、2、4、6 列（这里第 6 列被重复选取）的数据；然后将这些数据赋值给 qldata3 的第 c 行
+            if(qldata[i+1,0]==1): #end of trace for this patient 检查 qldata 中下一行（即 i + 1 行）的第 0 列元素是否等于 1；如果等于 1，说明当前患者的数据记录结束
                 c=c+1     
-                qldata3[c,:]=np.array([qldata[i,0]+1, abss[int(qldata[i,3])], -1, qldata[i,5],0,0,-1,qldata[i,6]]) 
+                qldata3[c,:]=np.array([qldata[i,0]+1, abss[int(qldata[i,3])], -1, qldata[i,5],0,0,-1,qldata[i,6]]) #当检测到患者数据记录结束时，c 再次加 1，然后在 qldata3 的第 c 行添加一条新的数据记录
 
-        qldata3=qldata3[:c+1,:]
+        qldata3=qldata3[:c+1,:]  #c 记录了 qldata3 中实际填充的最后一行的索引，通过 qldata3[:c + 1, :] 截取 qldata3 中从第 0 行到第 c 行的所有列，去除之前初始化时预留但未使用的多余行，得到最终有效的 qldata3 数组
 
-        #  add pi(s,a) and b(s,a)
-        p=0.01 #softening policies 
-        softpi=physpol.copy() # behavior policy = clinicians' 
+        #  add pi(s,a) and b(s,a)  pi是行为策略，供参考；b为目标策略（具体可参照动态决策AI笔记，后续会继续更新）
+        p=0.01 #softening policies 软策略
+        softpi=physpol.copy() # behavior policy = clinicians' #复制 physpol 矩阵得到 softpi，作为软化后的行为策略矩阵
+        for i in range(ncl): #遍历每个状态
+            ii=softpi[i,:]==0    #找出概率为 0 的动作
+            z=p/sum(ii)    #sum(ii) 是状态 i 下概率为 0 的动作数量，将 p 平均分配给这些动作
+            nz=p/sum(~ii)    #sum(~ii) 是状态 i 下概率不为 0 的动作数量，将 p 平均从这些动作的概率中减去(为什么是平均？)
+            softpi[i,ii]=z;   #将状态 i 下概率为 0 的动作的概率更新为 z
+            softpi[i,~ii]=softpi[i,~ii]-nz; #将状态 i 下概率不为 0 的动作的概率减去 nz
+
+        softb=np.abs(np.zeros((ncl+2,nact))-p/24) #"optimal" policy = target policy = evaluation policy np.zeros((ncl + 2, nact)) 创建一个形状为 (ncl + 2, nact) 的全零矩阵；softb 是软化后的目标策略矩阵，在离线策略评估中，目标策略是我们想要评估的策略，通常是一个理论上的最优策略
+
         for i in range(ncl): 
-            ii=softpi[i,:]==0    
-            z=p/sum(ii)    
-            nz=p/sum(~ii)    
-            softpi[i,ii]=z;   
-            softpi[i,~ii]=softpi[i,~ii]-nz;
-
-        softb=np.abs(np.zeros((ncl+2,nact))-p/24) #"optimal" policy = target policy = evaluation policy 
-
-        for i in range(ncl): 
-            softb[i,OptimalAction[i]]=1-p
+            softb[i,OptimalAction[i]]=1-p #对于每个状态 i，将目标策略矩阵 softb 中该状态 i 下的最优动作对应的概率设置为 1 - p
 
 
-        for i in range(qldata3.shape[0]):  # adding the probas of policies to qldata3
-            if qldata3[i,1]<ncl :
-                qldata3[i,4]=softpi[int(qldata3[i,1]),int(qldata3[i,2])]
-                qldata3[i,5]=softb[int(qldata3[i,1]),int(qldata3[i,2])]
-                qldata3[i,6]=OptimalAction[int(qldata3[i,1])]  #optimal action
+        for i in range(qldata3.shape[0]):  # adding the probas of policies to qldata3遍历 qldata3 矩阵的每一行
+            if qldata3[i,1]<ncl :  #筛选出状态编号小于 ncl 的行
+                qldata3[i,4]=softpi[int(qldata3[i,1]),int(qldata3[i,2])] #qldata3[i, 4] 存储行为策略 softpi 在当前状态（qldata3[i, 1]）下执行当前动作（qldata3[i, 2]）的概率
+                qldata3[i,5]=softb[int(qldata3[i,1]),int(qldata3[i,2])]  #qldata3[i, 5] 存储目标策略 softb 在当前状态下执行当前动作的概率（准备计算采样比？）
+                qldata3[i,6]=OptimalAction[int(qldata3[i,1])]  #optimal action qldata3[i, 6] 存储当前状态下的最优动作
 
-        qldata3train=qldata3.copy() 
+        qldata3train=qldata3.copy()  #复制 qldata3 矩阵得到 qldata3train，这样做可能是为了后续对训练数据进行操作
 
 
-        bootql,bootwis = offpolicy_multiple_eval_010518(qldata3,physpol, 0.99,1,6,750)
+        bootql,bootwis = offpolicy_multiple_eval_010518(qldata3,physpol, 0.99,1,6,750)  #offpolicy_multiple_eval_010518 是一个自定义的函数，用于进行离线策略评估（其他文件中或有定义）；函数返回两个结果：bootql 和 bootwis，它们可能分别代表某种评估指标
 
-        recqvi[modl,0]=modl
-        recqvi[modl,3]=np.nanmean(bootql)
+        recqvi[modl,0]=modl  #recqvi 是一个用于记录评估结果的矩阵，modl 表示当前模型或迭代步骤的索引
+        recqvi[modl,3]=np.nanmean(bootql) 
         recqvi[modl,4]=mquantiles(bootql,0.99, alphap=0.5, betap=0.5)[0]
-        recqvi[modl,5]=np.nanmean(bootwis) # we want this as high as possible
-        recqvi[modl,6]=mquantiles(bootwis,0.05, alphap=0.5, betap=0.5)[0] #we want this as high as possible
+        recqvi[modl,5]=np.nanmean(bootwis) # we want this as high as possible #recqvi[modl, 5] 记录 bootwis 的均值，通常希望这个值尽可能大
+        recqvi[modl,6]=mquantiles(bootwis,0.05, alphap=0.5, betap=0.5)[0] #we want this as high as possible  recqvi[modl, 6] 记录 bootwis 的 5% 分位数，同样希望这个值尽可能大
 
 
-        # testing on MIMIC-test
-        print('####  OFF-POLICY EVALUATION - MIMIC TEST SET ####')
+        # testing on MIMIC-test 离线策略评估（Off - Policy Evaluation）的准备工作
+        print('####  OFF-POLICY EVALUATION - MIMIC TEST SET ####')  
 
         # create new version of QLDATA3 with MIMIC TEST samples
-
-        idxtest = C.predict(Xtestmimic)
-
-        idxs[test,modl]=idxtest.ravel()  #important: record state membership of test cohort
-
-        actionbloctest=actionbloc[~train] 
-        Y90test=reformat5[~train,outcome]
+        #预测测试集样本的状态
+        idxtest = C.predict(Xtestmimic) #C 应该是一个已经训练好的分类器或模型；Xtestmimic 是 MIMIC 测试集的特征数据；通过调用 C.predict 方法，对测试集样本进行预测，得到每个样本所属的状态编号，存储在 idxtest 中
+        #记录测试集样本的状态信息
+        idxs[test,modl]=idxtest.ravel()  #important: record state membership of test cohortidxtest.ravel() 将 idxtest 数组展平为一维数组，然后将其赋值给 idxs 数组的对应位置，用于记录测试集样本的状态归属
+        #提取测试集的动作和结果信息
+        actionbloctest=actionbloc[~train] #actionbloc 是包含所有样本动作信息的数组，train 是一个布尔数组，用于标记训练集样本；~train 表示取反，即选择非训练集（测试集）的样本
+        Y90test=reformat5[~train,outcome] #reformat5 是包含所有样本相关信息的数组，outcome 表示结果信息的列索引；Y90test 提取了测试集样本的结果信息
 
         r=np.array([100, -100]).reshape(1,-1)
         r2=r*(2*(1-Y90test.reshape(-1,1))-1)
@@ -497,13 +500,13 @@ if __name__ == '__main__':   #确保代码块里的代码只有在该 Python 文
         qldata3=np.zeros((np.floor(qldata.shape[0]*1.2).astype('int64'),8))
         c=-1
         abss=np.array([ncl+1, ncl]) #absorbing states numbers # 751, 750 
-
+#上面这段是对 MIMIC 测试集数据进行处理，通过预测样本状态、提取动作和结果信息、计算奖励等操作，将测试集数据整理成 qldata 数组，并初始化 qldata3 数组，为后续在测试集上进行离线策略评估做好数据准备
         for i in range(qldata.shape[0]-1):
             c=c+1
-            qldata3[c,:]=qldata[i,[0,1,2,4,6,6,6,6]] 
+            qldata3[c,:]=qldata[i,[0,1,2,4,6,6,6,6]] #复制部分列数据：将 qldata 数组第 i 行的第 0、1、2、4、6 列（第 6 列重复 3 次）的数据复制到 qldata3 数组的第 c 行（为什么是这几行？）
             if(qldata[i+1,0]==1): #end of trace for this patient
                 c=c+1     
-                qldata3[c,:]=np.array([qldata[i,0]+1, abss[int(qldata[i,3])], -1, qldata[i,5],0,0,-1,qldata[i,6]]) 
+                qldata3[c,:]=np.array([qldata[i,0]+1, abss[int(qldata[i,3])], -1, qldata[i,5],0,0,-1,qldata[i,6]]) #与上面类似
 
         qldata3=qldata3[:c+1,:]
 
@@ -517,7 +520,7 @@ if __name__ == '__main__':   #确保代码块里的代码只有在该 Python 文
             softpi[i,ii]=z;   
             softpi[i,~ii]=softpi[i,~ii]-nz;
 
-        softb=np.abs(np.zeros((ncl+2,nact))-p/24) #"optimal" policy = target policy = evaluation policy 
+        softb=np.abs(np.zeros((ncl+2,nact))-p/24) #"optimal" policy = target policy = evaluation policy #与上pi与b策略的软化类似
 
         for i in range(ncl): 
             softb[i,OptimalAction[i]]=1-p
@@ -538,24 +541,24 @@ if __name__ == '__main__':   #确保代码块里的代码只有在该 Python 文
         recqvi[modl,21]=np.nanmean(bootmimictestwis) 
         recqvi[modl,22]=mquantiles(bootmimictestwis,0.01, alphap=0.5, betap=0.5)[0] 
         recqvi[modl,23]=mquantiles(bootmimictestwis,0.05, alphap=0.5, betap=0.5)[0] #AI 95% LB, we want this as high as possible
+#与上类似 这段目的是完善目标策略矩阵，为测试集数据添加策略概率和最优动作信息，在测试集上进行离线策略评估，并将评估结果记录下来，为后续的策略分析和比较提供数据支持
 
 
-
-
-        if recqvi[modl,23] > 40: #saves time if policy is not good on MIMIC test: skips to next model
+#下面这段代码主要完成了模型筛选、保存和结果记录的工作，具体来说，它会根据模型在测试集上的评估结果决定是否进行后续测试、保存表现良好的模型，最后将相关数据保存为 pickle 文件和 CSV 文件
+        if recqvi[modl,23] > 40: #saves time if policy is not good on MIMIC test: skips to next modelrecqvi[modl,23] 存储的是模型在 MIMIC 测试集上评估指标的 95% 下界，如果该值大于 40，说明模型在 MIMIC 测试集上表现不佳，为节省时间，跳过 eICU 测试
             print('########################## eICU TEST SET #############################')
             # eICU part was not implemented 
 
 
 
         # eICU testing was not included 
-        if recqvi[modl,23]>0 : #  & recqvi(modl,14)>0   # if 95% LB is >0 : save the model (otherwise it's pointless)
+        if recqvi[modl,23]>0 : #  & recqvi(modl,14)>0   # if 95% LB is >0 : save the model (otherwise it's pointless) 如果 recqvi[modl,23] 大于 0，说明模型在 MIMIC 测试集上的 95% 下界为正，认为该模型表现良好，保留
             print('####   GOOD MODEL FOUND - SAVING IT   ####' ) 
 
             # best pol 
-            if(bestpol < recqvi[modl,23]):
+            if(bestpol < recqvi[modl,23]): 
                 print('Best policy was replaced => 95% LB is ',recqvi[modl,23])
-                bestpol = recqvi[modl,23] 
+                bestpol = recqvi[modl,23]  #进一步比较当前模型的 95% 下界与之前记录的最优策略的 95% 下界（bestpol），如果当前模型更优，则更新 bestpol 的值，并打印替换信息
                 
                 # save to pickle 
                 with open('bestpol.pkl', 'wb') as file:
@@ -568,20 +571,20 @@ if __name__ == '__main__':   #确保代码块里的代码只有在该 Python 文
                     pickle.dump(C,file)
                     pickle.dump(train,file)
                     pickle.dump(qldata3train,file)
-                    pickle.dump(qldata3test,file) 
+                    pickle.dump(qldata3test,file)   #使用 pickle 模块将当前模型的相关数据（如模型索引 modl、Q 值矩阵 Qon、医生策略矩阵 physpol、状态转移矩阵 transitionr 和 transitionr2、奖励矩阵 R、分类器 C、训练集标记 train、训练集数据 qldata3train 和测试集数据 qldata3test）保存到 bestpol.pkl 文件中
 
 
-    recqvi=recqvi[:modl+1,:]
+    recqvi=recqvi[:modl+1,:]  #截取 recqvi 矩阵从第 0 行到第 modl 行的所有列，去除未使用的多余行，得到最终有效的 recqvi 矩阵
 
     # save to pickle for visualization 
     with open('step_5_start.pkl', 'wb') as file:
         pickle.dump(MIMICzs,file)
         pickle.dump(actionbloc,file)
         pickle.dump(reformat5,file)
-        pickle.dump(recqvi,file)
+        pickle.dump(recqvi,file)  #使用 pickle 模块将 MIMICzs、actionbloc、reformat5 和 recqvi 保存到 step_5_start.pkl 文件中
 
     # save recqvi in csv format 
-    np.savetxt('recqvi.csv',recqvi,delimiter=',') 
+    np.savetxt('recqvi.csv',recqvi,delimiter=',')  #使用 numpy 的 savetxt 函数将 recqvi 矩阵保存为 recqvi.csv 文件
 
 
 
